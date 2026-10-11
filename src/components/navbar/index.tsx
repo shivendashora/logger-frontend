@@ -1,9 +1,9 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useCards, useSaveContext } from "../../context/cards-context";
 
-export default function navbar(){
+export default function Navbar(){
 
-    const navItems = ["Home", "About"]
+    const navItems = ["Home", "About", "Login"]
     const { isEditing, setIsEditing } = useSaveContext()
     const location = useLocation();
     const navigate = useNavigate();

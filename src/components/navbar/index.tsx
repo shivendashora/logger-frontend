@@ -69,7 +69,13 @@ export default function Navbar(){
                     )}
                 </div>
             ) : isLoggedIn && (
-                <>
+                <div className="flex items-center gap-2 sm:gap-4">
+                    {currentPath !== "create-log" && (
+                        <button onClick={() => { setMenuOpen(false); navigate("/create-log") }} className={`${buttonBase} bg-white text-black text-sm sm:text-base hover:bg-gray-300`}>
+                            + Create log
+                        </button>
+                    )}
+
                     {/* desktop links */}
                     <ul className="hidden sm:flex flex-row gap-4">
                         {navItems.map((item, key) => (
@@ -113,7 +119,7 @@ export default function Navbar(){
                             </li>
                         </ul>
                     )}
-                </>
+                </div>
             )}
 
         </div>

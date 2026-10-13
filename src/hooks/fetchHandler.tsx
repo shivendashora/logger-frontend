@@ -70,6 +70,26 @@ const getRequest = async (
     return result
 };
 
+// downloads a protected file: fetches it with the token, then saves it via a temporary link
+// (a plain <a href> can't send the Authorization header)
+export const downloadFile = async (url: string, fileName: string) => {
+    const response = await fetch(url, { headers: withAuth(url) });
+
+    handleUnauthorized(url, response);
+
+    if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.detail || "Download failed");
+    }
+
+    const blobUrl = URL.createObjectURL(await response.blob());
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = fileName;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+};
+
 export const useFetchHandler = async (
     requestPayload: any,
     method: string,

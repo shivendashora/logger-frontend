@@ -1,12 +1,16 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useCards, useSaveContext } from "../../context/cards-context";
+import { clearToken, getToken } from "../../utils/auth";
 
 export default function Navbar(){
 
-    const navItems = ["Home", "About", "Login"]
     const { isEditing, setIsEditing } = useSaveContext()
     const location = useLocation();
     const navigate = useNavigate();
+
+    // re-evaluated on every navigation, since useLocation re-renders the navbar
+    const isLoggedIn = !!getToken()
+    const navItems = isLoggedIn ? ["Home", "About"] : ["Home", "About", "Login"]
     const { cards, setDraft, saveCard } = useCards();
 
     // /log-card/1 -> ["", "log-card", "1"]
@@ -17,6 +21,11 @@ export default function Navbar(){
         saveCard(cardId)
         setIsEditing(false)
         navigate("/")
+    }
+
+    const handleLogout = () => {
+        clearToken()
+        navigate("/login")
     }
 
     const handleEdit=()=>{
@@ -63,6 +72,11 @@ export default function Navbar(){
                             </Link>
                         </li>
                     ))}
+                    {isLoggedIn && (
+                        <li className="px-4 cursor-pointer hover:text-gray-400" onClick={handleLogout}>
+                            Logout
+                        </li>
+                    )}
                 </ul>
             )}
 

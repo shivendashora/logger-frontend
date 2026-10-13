@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import {useFetchHandler} from "../../hooks/fetchHandler"
+import { setToken } from "../../utils/auth";
 
 type Mode = "login" | "signup";
 
@@ -14,14 +16,58 @@ export default function AuthForm({ mode }: { mode: Mode }){
     const [password, setPassword] = useState("");
     const [confirm, setConfirm] = useState("");
     const [error, setError] = useState<string | null>(null);
+    const [success, setSuccess] = useState<string | null>(null);
 
-    const handleSubmit = (e: FormEvent) => {
+    const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
+        setError(null);
+        setSuccess(null);
         if (isSignup && password.length < 6) return setError("Password must be at least 6 characters");
         if (isSignup && password !== confirm) return setError("Passwords do not match");
+        
+        try{
 
-        // no auth backend yet, just go to the home page
-        navigate("/");
+            if(mode === "login"){
+                // OAuth2PasswordRequestForm expects form-encoded "username" + "password"
+                const requestPayload = new URLSearchParams({
+                   username:email,
+                   password:password
+                })
+                const result  = await useFetchHandler(requestPayload,"POST","http://127.0.0.1:8000/login")
+
+                if(result){
+                    setToken(result.access_token)
+                }
+                console.log(result);
+                setSuccess(result.message);
+                navigate("/Home");
+
+
+            }
+            else if(mode == "signup"){
+
+                const requestPayload = {
+                   username:name,
+                   email:email,
+                   password:password
+                }
+                const result  = await useFetchHandler(requestPayload,"POST","http://127.0.0.1:8000/sign-in")
+                console.log(result);
+                setSuccess(result.message);
+
+            }
+
+            
+        }catch(e:unknown){
+            if(e instanceof Error){
+                setError(e.message);
+            }
+            else{
+                setError("An unexpected error occured")
+            }
+            
+        }
+        
     }
 
     return (
@@ -41,6 +87,7 @@ export default function AuthForm({ mode }: { mode: Mode }){
                 )}
 
                 {error && <span className="text-red-400 text-sm">{error}</span>}
+                {success && <span className="text-green-400 text-sm">{success}</span>}
 
                 <button type="submit" className="px-4 py-2 bg-white text-black rounded-lg cursor-pointer hover:bg-gray-300">
                     {isSignup ? "Create account" : "Sign in"}

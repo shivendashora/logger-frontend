@@ -9,6 +9,23 @@
 }
 
 
+/* stop the rubber-band bounce that shows bare black past the page edges */
+html, body{
+  overscroll-behavior: none;
+}
+
 body{
   background-color: black;
+  /* soft colour glows so the frosted-glass cards have something to blur */
+  background-image:
+    radial-gradient(circle at 15% 20%, rgba(124, 58, 237, 0.45), transparent 40%),
+    radial-gradient(circle at 85% 30%, rgba(14, 165, 233, 0.35), transparent 40%),
+    radial-gradient(circle at 50% 90%, rgba(236, 72, 153, 0.30), transparent 45%);
+  background-attachment: fixed;
+}
+
+@utility glass-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }

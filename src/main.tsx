@@ -10,7 +10,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <CardsProvider>
-        <div className="h-screen flex flex-col overflow-hidden">
+        <div className="h-dvh flex flex-col overflow-hidden">
           <Navbar/>
           <App/>
         </div>

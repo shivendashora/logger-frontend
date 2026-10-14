@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import {useFetchHandler} from "../../hooks/fetchHandler"
+import { fetchHandler } from "../../hooks/fetchHandler"
+import { API_BASE } from "../../config"
 import { setToken } from "../../utils/auth";
 
 type Mode = "login" | "signup";
@@ -33,12 +34,11 @@ export default function AuthForm({ mode }: { mode: Mode }){
                    username:email,
                    password:password
                 })
-                const result  = await useFetchHandler(requestPayload,"POST","http://127.0.0.1:8000/login")
+                const result  = await fetchHandler<{ message: string; access_token: string }>(requestPayload,"POST",`${API_BASE}/login`)
 
                 if(result){
                     setToken(result.access_token)
                 }
-                console.log(result);
                 setSuccess(result.message);
                 navigate("/Home");
 
@@ -51,8 +51,7 @@ export default function AuthForm({ mode }: { mode: Mode }){
                    email:email,
                    password:password
                 }
-                const result  = await useFetchHandler(requestPayload,"POST","http://127.0.0.1:8000/sign-in")
-                console.log(result);
+                const result  = await fetchHandler<{ message: string }>(requestPayload,"POST",`${API_BASE}/sign-in`)
                 setSuccess(result.message);
 
             }

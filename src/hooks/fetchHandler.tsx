@@ -3,6 +3,14 @@ import { clearToken, getToken } from "../utils/auth";
 // endpoints that must be callable without a token
 const PUBLIC_PATHS = ["/login", "/sign-in"];
 
+type Method = "GET" | "POST" | "PUT" | "DELETE";
+
+// error replies from FastAPI: a string, or a list of validation errors for bad input (422)
+interface ErrorBody {
+    detail?: string | { msg: string }[];
+    message?: string;
+}
+
 // attaches the bearer token from the cookie to every non-public request
 const withAuth = (url: string, headers: Record<string, string> = {}) => {
     const token = getToken();
@@ -20,54 +28,9 @@ const handleUnauthorized = (url: string, response: Response) => {
     window.location.assign("/login");
 };
 
-const postRequest = async (
-    url: string,
-    requestPayload: any,
-    ...args: any[]
-) => {
-    // form bodies are sent as-is (the browser sets their content-type), everything else as JSON
-    const isFormBody =
-        requestPayload instanceof URLSearchParams || requestPayload instanceof FormData;
-
-    const data = await fetch(url, {
-        method: "POST",
-        headers: isFormBody
-            ? withAuth(url, args[0])
-            : withAuth(url, { "Content-Type": "application/json", ...args[0] }),
-        body: isFormBody ? requestPayload : JSON.stringify(requestPayload)
-    });
-
-    handleUnauthorized(url, data);
-
-    const result = await data.json();
-    if (!data.ok) {
-        throw new Error(
-            result.detail || result.message || "Something went wrong"
-        );
-    }
-
-    return result
-};
-
-const getRequest = async (
-    url: string,
-    ...args: any[]
-) => {
-    const data = await fetch(url, {
-        method: "GET",
-        headers: withAuth(url, args[0])
-    });
-
-    handleUnauthorized(url, data);
-
-    const result = await data.json();
-    if (!data.ok) {
-        throw new Error(
-            result.detail || result.message || "Something went wrong"
-        );
-    }
-
-    return result
+const errorMessage = (body: ErrorBody) => {
+    if (Array.isArray(body.detail)) return body.detail[0]?.msg ?? "Invalid input";
+    return body.detail || body.message || "Something went wrong";
 };
 
 // downloads a protected file: fetches it with the token, then saves it via a temporary link
@@ -78,8 +41,8 @@ export const downloadFile = async (url: string, fileName: string) => {
     handleUnauthorized(url, response);
 
     if (!response.ok) {
-        const result = await response.json().catch(() => ({}));
-        throw new Error(result.detail || "Download failed");
+        const result: ErrorBody = await response.json().catch(() => ({}));
+        throw new Error(errorMessage(result) || "Download failed");
     }
 
     const blobUrl = URL.createObjectURL(await response.blob());
@@ -90,28 +53,33 @@ export const downloadFile = async (url: string, fileName: string) => {
     setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
 };
 
-export const useFetchHandler = async (
-    requestPayload: any,
-    method: string,
+// sends a request and returns the parsed JSON reply, typed by the caller: fetchHandler<{ data: ... }>(...)
+// (a plain async function, not a React hook, so it can be called from event handlers and callbacks)
+export const fetchHandler = async <T = unknown>(
+    requestPayload: unknown,
+    method: Method,
     url: string,
-    ...args: any[]
-) => {
-    switch (method) {
-        case "POST": {
-            const response = await postRequest(
-                url,
-                requestPayload,
-                ...args
-            );
-            return response;
-        }
+    headers: Record<string, string> = {}
+): Promise<T> => {
+    // form bodies are sent as-is (the browser sets their content-type), everything else as JSON
+    const isFormBody =
+        requestPayload instanceof URLSearchParams || requestPayload instanceof FormData;
+    const hasBody = method !== "GET" && requestPayload !== null && requestPayload !== undefined;
 
-        case "GET": {
-            const response = await getRequest(url, ...args);
-            return response;
-        }
+    const response = await fetch(url, {
+        method,
+        headers: hasBody && !isFormBody
+            ? withAuth(url, { "Content-Type": "application/json", ...headers })
+            : withAuth(url, headers),
+        body: !hasBody ? undefined : isFormBody ? requestPayload : JSON.stringify(requestPayload),
+    });
 
-        default:
-            throw new Error(`Unsupported HTTP method: ${method}`);
+    handleUnauthorized(url, response);
+
+    const result = await response.json();
+    if (!response.ok) {
+        throw new Error(errorMessage(result as ErrorBody));
     }
+
+    return result as T;
 };

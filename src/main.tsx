@@ -4,7 +4,7 @@ import './index.css'
 import App from './App.tsx'
 import {BrowserRouter} from 'react-router-dom'
 import Navbar from './components/navbar/index.tsx'
-import { CardsProvider } from './context/cards-context.tsx'
+import { CardsProvider } from './context/cards-provider.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

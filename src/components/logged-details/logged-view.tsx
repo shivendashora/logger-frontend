@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { API_BASE, useCards, useSaveContext, useSearch } from "../../context/cards-context";
+import { useCards, useSaveContext, useSearch } from "../../context/cards-context";
+import { API_BASE } from "../../config";
 import Highlight from "../highlight";
 import { downloadFile } from "../../hooks/fetchHandler";
 
@@ -12,25 +13,31 @@ export default function LoggedView() {
 
     const { isEditing } = useSaveContext();
     const { id } = useParams();
-    const { cards, draft, setDraft, loadCards, loading } = useCards();
+    const { cards, draft, setDraft, loadCard } = useCards();
     const { searchQuery } = useSearch();
     const card = cards.find((c) => c.id === id);
     // remembers an image URL that failed to load, so a missing image hides the panel
     const [failedUrl, setFailedUrl] = useState<string | null>(null);
     const [downloading, setDownloading] = useState(false);
     const [downloadError, setDownloadError] = useState<string | null>(null);
+    // the id whose fetch failed (missing, or someone else's log)
+    const [notFoundId, setNotFoundId] = useState<string | null>(null);
+    // ids already requested, so a re-render never fetches the same log twice
+    const requestedRef = useRef<string | null>(null);
 
-    // opened directly (e.g. page refresh) before the home page fetched anything
+    // opened directly (refresh, link) or the log isn't in the loaded pages: fetch just this log
     useEffect(() => {
-        if (cards.length === 0) loadCards();
-    }, []);
+        if (card || !id || requestedRef.current === id) return;
+        requestedRef.current = id;
+        loadCard(id).catch(() => setNotFoundId(id));
+    }, [card, id, loadCard]);
 
-    // load the selected card into the editable draft
+    // keep the editable draft in step with the saved card, except while the user is editing it
     useEffect(() => {
-        if (card) setDraft({ name: card.name, description: card.description });
-    }, [id, card?.id]);
+        if (card && !isEditing) setDraft({ name: card.name, description: card.description });
+    }, [card, isEditing, setDraft]);
 
-    if (!card && loading) {
+    if (!card && notFoundId !== id) {
         return <p className="text-white/70 text-xl">Loading...</p>
     }
 

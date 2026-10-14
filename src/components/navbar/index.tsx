@@ -22,7 +22,9 @@ export default function Navbar(){
     // re-evaluated on every navigation, since useLocation re-renders the navbar
     const isLoggedIn = !!getToken()
     const navItems = ["Home", "About"]
-    const { cards, setDraft, saveCard, deleteCards, loadCards } = useCards();
+    const { cards, draft, setDraft, saveCard, deleteCards, loadCards } = useCards();
+    const [saving, setSaving] = useState(false);
+    const [saveError, setSaveError] = useState<string | null>(null);
     const { selecting, selected, allSelected, startSelecting, exitSelecting, toggleAll } = useSelection();
     const [deleting, setDeleting] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -31,10 +33,18 @@ export default function Navbar(){
     const [, currentPath, cardId] = location.pathname.split('/')
     const cardState = currentPath === "log-card"
 
-    const handleSave = () => {
-        saveCard(cardId)
-        setIsEditing(false)
-        navigate("/Home")
+    // saves the edited name/description on the server and stays on the card
+    const handleSave = async () => {
+        setSaving(true)
+        setSaveError(null)
+        try{
+            await saveCard(cardId)
+            setIsEditing(false)
+        }catch(e: unknown){
+            setSaveError(e instanceof Error ? e.message : "Could not save changes")
+        }finally{
+            setSaving(false)
+        }
     }
 
     const handleLogout = () => {
@@ -44,6 +54,7 @@ export default function Navbar(){
     }
 
     const handleEdit=()=>{
+        setSaveError(null)
         setIsEditing(true)
     }
 
@@ -53,8 +64,12 @@ export default function Navbar(){
     // shared through context so the cards can highlight what's being searched
     const { searchQuery, setSearchQuery } = useSearch()
 
+    // the list is only re-fetched on the home grid; on a card page the search just highlights,
+    // and the home page applies it when it opens
+    const onHome = currentPath === "Home"
+
     useEffect(() => {
-        if (!searchQuery) return
+        if (!searchQuery || !onHome) return
 
         const timerId = setTimeout(() => {
             loadCards(searchQuery)
@@ -62,13 +77,13 @@ export default function Navbar(){
 
         // runs before the next keystroke's effect: cancels the timer that hasn't fired yet
         return () => clearTimeout(timerId)
-    }, [searchQuery])
+    }, [searchQuery, onHome, loadCards])
 
 
     // runs on every keystroke (and when cleared): keep the input in sync, then search
     const handleSearchChange = (value: string) => {
         setSearchQuery(value)
-        if (!value.trim()) loadCards()
+        if (!value.trim() && onHome) loadCards()
     }
 
     const exitDelete = () => {
@@ -93,6 +108,7 @@ export default function Navbar(){
     const handleCancel=()=>{
         const card = cards.find((c) => c.id === cardId)
         if (card) setDraft({ name: card.name, description: card.description })
+        setSaveError(null)
         setIsEditing(false)
     }
     
@@ -115,18 +131,22 @@ export default function Navbar(){
                     <button disabled={isEditing} onClick={() => { setIsEditing(false); navigate("/Home") }} className={`${buttonBase} border border-white disabled:opacity-40 hover:text-gray-400`}>
                         Back
                     </button>
-                    <button onClick={handleSave} className={`${buttonBase} bg-white text-black hover:bg-gray-300`}>
-                        Save
-                    </button>
+                    {/* Save only makes sense while editing; a blank name can't be saved */}
                     {isEditing ? (
-                        <button onClick={handleCancel} className={`${buttonBase} border border-white hover:text-gray-400`}>
-                            Cancel
-                        </button>
+                        <>
+                            <button onClick={handleSave} disabled={saving || !draft.name.trim()} className={`${buttonBase} bg-white text-black hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed`}>
+                                {saving ? "Saving..." : "Save"}
+                            </button>
+                            <button onClick={handleCancel} disabled={saving} className={`${buttonBase} border border-white hover:text-gray-400 disabled:opacity-40`}>
+                                Cancel
+                            </button>
+                        </>
                     ) : (
                         <button onClick={handleEdit} className={`${buttonBase} bg-white text-black hover:bg-gray-300`}>
                             Edit
                         </button>
                     )}
+                    {saveError && <span className="absolute top-full right-4 sm:right-6 text-red-400 text-sm">{saveError}</span>}
                 </div>
             ) : isLoggedIn && selecting ? (
                 // selection mode replaces the usual links with bulk-delete controls

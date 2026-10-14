@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { useFetchHandler } from "../../hooks/fetchHandler";
-import { ALLOWED_FILE_EXTENSIONS, ALLOWED_FILE_TYPES, API_BASE, MAX_FILE_SIZE, useCards } from "../../context/cards-context";
+import { fetchHandler } from "../../hooks/fetchHandler";
+import { useCards, type LogResponse } from "../../context/cards-context";
+import { ALLOWED_FILE_EXTENSIONS, ALLOWED_FILE_TYPES, API_BASE, MAX_FILE_SIZE } from "../../config";
 
 // quick check before uploading; the backend re-checks the real file contents
 const fileError = (file: File) => {
@@ -41,7 +42,7 @@ export default function CreateLog(){
             requestPayload.append("description", description);
             requestPayload.append("file", file);
 
-            const result = await useFetchHandler(requestPayload, "POST", "http://127.0.0.1:8000/logFormData");
+            const result = await fetchHandler<{ data: LogResponse }>(requestPayload, "POST", `${API_BASE}/logFormData`);
 
             // use what the backend actually saved, including where it stored the file
             addCard({

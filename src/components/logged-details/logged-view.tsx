@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { API_BASE, useCards, useSaveContext } from "../../context/cards-context";
+import { API_BASE, useCards, useSaveContext, useSearch } from "../../context/cards-context";
+import Highlight from "../highlight";
 import { downloadFile } from "../../hooks/fetchHandler";
 
 // "C:\...\Uploads\<32 hex>_notes.pdf" -> "notes.pdf"
@@ -12,6 +13,7 @@ export default function LoggedView() {
     const { isEditing } = useSaveContext();
     const { id } = useParams();
     const { cards, draft, setDraft, loadCards, loading } = useCards();
+    const { searchQuery } = useSearch();
     const card = cards.find((c) => c.id === id);
     // remembers an image URL that failed to load, so a missing image hides the panel
     const [failedUrl, setFailedUrl] = useState<string | null>(null);
@@ -54,9 +56,10 @@ export default function LoggedView() {
     }
 
     return(
-        <div className="w-full h-full flex flex-col md:flex-row gap-6 items-stretch justify-center px-4 sm:px-8 pb-8 overflow-y-auto overscroll-none scrollbar-hidden">
-            {/* without an attachment the log takes the full width (capped so lines stay readable) */}
-            <div className={`glass-card backdrop-blur-lg rounded-2xl p-4 sm:p-6 flex flex-col gap-4 ${showPanel ? "w-full md:w-1/2" : "w-full max-w-4xl"}`}>
+        // no justify-center here: centring a scroll container's content pushes its top out of reach when it overflows
+        <div className="w-full flex-1 min-h-0 flex flex-col lg:flex-row gap-6 items-stretch px-4 sm:px-8 pb-8 overflow-y-auto overscroll-none scrollbar-hidden">
+            {/* without an attachment the log takes the full width (capped so lines stay readable, centred by mx-auto) */}
+            <div className={`glass-card backdrop-blur-lg rounded-2xl p-4 sm:p-6 flex flex-col gap-4 shrink-0 lg:shrink ${showPanel ? "w-full lg:w-1/2" : "w-full max-w-4xl mx-auto"}`}>
                 {isEditing ? (
                     <input
                         type="text"
@@ -65,22 +68,29 @@ export default function LoggedView() {
                         className="h-10 px-4 py-2 border border-white rounded-lg text-white bg-transparent focus:outline-none"
                     />
                 ) : (
-                    <h1 className="text-xl sm:text-2xl font-medium text-white">{card.name}</h1>
+                    <h1 className="text-xl sm:text-2xl font-medium text-white"><Highlight text={card.name} query={searchQuery} /></h1>
                 )}
 
-                <div className="w-full flex-1 min-h-[40vh] md:min-h-0">
-                    <textarea
-                    id="description"
-                    readOnly={!isEditing}
-                    onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-                    value={draft.description}
-                    className={`w-full h-full px-4 py-2 border rounded-lg text-white/90 bg-transparent focus:outline-none resize-none ${isEditing ? "border-white" : "border-transparent"}`}
-                    ></textarea>
+                <div className="w-full flex-1 min-h-[40vh] lg:min-h-0">
+                    {isEditing ? (
+                        <textarea
+                        id="description"
+                        onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+                        value={draft.description}
+                        className="w-full h-full px-4 py-2 border border-white rounded-lg text-white/90 bg-transparent focus:outline-none resize-none"
+                        ></textarea>
+                    ) : (
+                        // a textarea can't style part of its text, so reading mode renders the description
+                        // as plain text (keeping line breaks) to show search highlights
+                        <div id="description" className="w-full h-full px-4 py-2 border border-transparent rounded-lg text-white/90 whitespace-pre-wrap break-words overflow-y-auto scrollbar-hidden">
+                            <Highlight text={draft.description} query={searchQuery} />
+                        </div>
+                    )}
                 </div>
             </div>
 
             {showPanel && (
-                <div className="glass-card backdrop-blur-lg rounded-2xl w-full md:w-1/2 flex flex-col overflow-hidden min-h-[60vh] md:min-h-0">
+                <div className="glass-card backdrop-blur-lg rounded-2xl w-full lg:w-1/2 flex flex-col overflow-hidden h-[75dvh] shrink-0 lg:h-auto lg:shrink">
                     {/* header: file name on the left, download on the side */}
                     <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-white/15">
                         <span className="text-white/80 text-sm truncate" title={fileName}>
@@ -109,7 +119,7 @@ export default function LoggedView() {
                                 className="max-w-full max-h-full object-contain rounded-xl"
                             />
                         ) : isPdf ? (
-                            <iframe src={card.fileUrl!} title={fileName} className="w-full h-full min-h-[55vh] md:min-h-0 rounded-xl bg-white" />
+                            <iframe src={card.fileUrl!} title={fileName} className="w-full h-full rounded-xl bg-white" />
                         ) : (
                             <p className="text-white/60 text-sm text-center px-4">
                                 Preview isn't available for this file type. Use Download to open it.
